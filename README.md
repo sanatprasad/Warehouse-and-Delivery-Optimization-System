@@ -1,133 +1,133 @@
-# Warehouse-and-Delivery-Optimization-System
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <limits.h>
+#include <functional>
 
-# Delivery Route Optimization Project (C++ with OOP)
+using namespace std;
 
-## Project Overview
+const int INF = INT_MAX;  // Infinity constant to represent unreachable nodes
 
-This project is designed to optimize delivery routes from multiple warehouses to customer locations (houses). It leverages **Object-Oriented Programming (OOP)** principles and graph algorithms to minimize travel distances, account for fuel constraints, and maximize truck load efficiency. The primary focus is on developing an extensible, modular design for real-world logistics optimization.
+// Class to handle Dijkstra's Algorithm
+class RouteOptimizer {
+private:
+    int numLocations;
+    vector<vector<pair<int, int>>> adjList;  // Adjacency list to store graph (node, weight)
 
-## Key Features
+public:
+    RouteOptimizer(int n) : numLocations(n) {
+        adjList.resize(n);
+    }
 
-1. **Object-Oriented Design**: 
-   - The project employs **classes and objects** to represent entities such as **Graph**, **Warehouse**, and **Truck**.
-   - Abstraction and encapsulation are used to separate different functionalities like route calculation, load management, and fuel planning.
+    // Function to add a road between two nodes with a certain distance
+    void addRoad(int u, int v, int dist) {
+        adjList[u].push_back({v, dist});
+        adjList[v].push_back({u, dist});  // Assuming it's a bidirectional road
+    }
 
-2. **Graph Representation**: 
-   - Cities, warehouses, and roads are modeled using a graph data structure, where nodes represent locations and edges represent roads with weights indicating distances.
+    // Dijkstra's algorithm to calculate shortest paths from a single source
+    vector<int> calculateShortestPaths(int source) {
+        vector<int> dist(numLocations, INF);
+        dist[source] = 0;
 
-3. **OOP Concepts Applied**:
-   - **Encapsulation**: Data and methods are grouped into relevant classes such as `Graph` and `Truck`.
-   - **Inheritance**: Classes can be extended to introduce more specialized behaviors (e.g., different types of trucks or warehouses).
-   - **Polymorphism**: Functions like `findBestRoute()` can be overridden to implement custom route-finding strategies based on fuel efficiency or shortest paths.
+        // Min-heap priority queue to pick the node with the smallest distance
+        priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
+        pq.push({0, source});
 
-4. **Graph Algorithms**:
-   - **Dijkstra’s Algorithm** and **Floyd-Warshall Algorithm** are implemented for finding the shortest paths between warehouses and houses.
-   - These algorithms are encapsulated within the `Graph` class, providing clean separation between the graph structure and route-finding logic.
+        while (!pq.empty()) {
+            int currDist = pq.top().first;
+            int u = pq.top().second;
+            pq.pop();
 
-5. **Fuel and Load Optimization**:
-   - Trucks have limited fuel capacities and load limits, modeled using a `Truck` class that encapsulates these constraints.
-   - The project uses a **Knapsack Algorithm** to ensure trucks are loaded efficiently, balancing distance traveled with load capacity.
+            // If the current distance is greater than the already found shortest distance, skip
+            if (currDist > dist[u]) continue;
 
-6. **Modular and Extensible**:
-   - The project design makes it easy to extend functionality by adding more features (e.g., additional types of vehicles, dynamic route adjustments) without affecting existing code.
+            // Explore neighbors of node u
+            for (auto &neighbor : adjList[u]) {
+                int v = neighbor.first;
+                int weight = neighbor.second;
 
-## Functions and OOP Concepts Explained
+                if (dist[u] + weight < dist[v]) {
+                    dist[v] = dist[u] + weight;
+                    pq.push({dist[v], v});
+                }
+            }
+        }
+        return dist;
+    }
 
-1. **Class Definitions**:
-   - **Graph Class**:
-     - Encapsulates nodes, edges, and methods like `addEdge()`, `dijkstra()`, and `floydWarshall()`.
-     - **Encapsulation**: Data members (nodes, edges) are kept private and only accessible via public methods.
-   - **Truck Class**:
-     - Stores information like fuel capacity, load capacity, and methods for calculating fuel usage and checking load limits.
-     - **Abstraction**: Trucks are abstracted as objects with fuel and load properties, allowing the user to focus on truck behaviors rather than implementation details.
+    // Function to print the shortest distances from a source to all other locations
+    void printShortestPaths(int source, const vector<int>& distances) {
+        for (int i = 0; i < numLocations; i++) {
+            if (distances[i] == INF) {
+                cout << "Distance from location " << source << " to " << i << ": INF" << endl;
+            } else {
+                cout << "Distance from location " << source << " to " << i << ": " << distances[i] << " units" << endl;
+            }
+        }
+    }
+};
 
-2. **Graph Representation**:
-   - `addEdge(int src, int dest, int weight)`: Adds a bidirectional edge between two nodes in the graph, encapsulating the connection between cities.
-   - **Encapsulation** ensures that graph data (nodes, edges) is only modified via controlled methods.
+// Greedy class to maximize cargo space utilization
+class CargoOptimizer {
+private:
+    int vanCapacity;
 
-3. **Dijkstra’s Algorithm**:
-   - `dijkstra(int src)`: Finds the shortest path from the source warehouse to all destinations. Encapsulated within the `Graph` class, ensuring that pathfinding is a graph-specific behavior.
-   - **Polymorphism**: This method can be overridden to implement other pathfinding algorithms as needed.
+public:
+    CargoOptimizer(int capacity) : vanCapacity(capacity) {}
 
-4. **Floyd-Warshall Algorithm**:
-   - `floydWarshall()`: Encapsulates the logic for finding shortest paths between all pairs of nodes.
-   - This method is part of the `Graph` class and uses encapsulation to keep graph data private, modifying it only through defined methods.
+    // Function to optimize cargo placement using a greedy approach
+    int maximizeCargoSpace(vector<int> &packages) {
+        // Sort the packages in descending order of size
+        sort(packages.begin(), packages.end(), greater<int>());
+        
+        int usedCapacity = 0;
+        int packagesLoaded = 0;
 
-5. **Truck Load Management**:
-   - `Truck::knapsack(int weight[], int value[], int capacity, int n)`: A member function of the `Truck` class that uses the knapsack algorithm to optimize truck loading.
-   - **Encapsulation**: Load and capacity constraints are encapsulated within the `Truck` class, providing a clear interface for interacting with delivery vehicles.
+        for (int package : packages) {
+            if (usedCapacity + package <= vanCapacity) {
+                usedCapacity += package;
+                packagesLoaded++;
+            } else {
+                break;  // Stop when the van is full
+            }
+        }
 
-6. **Fuel Calculation**:
-   - `Truck::calculateFuel(int distance)`: Computes fuel consumption based on the distance of the route.
-   - **Abstraction**: The complexity of fuel calculation is hidden behind a simple method, making it easier to use.
+        return packagesLoaded;
+    }
+};
 
-## Object-Oriented Design Principles
+// Main system to handle route planning and cargo optimization
+int main() {
+    // Example setup for RouteOptimizer
+    int numLocations = 5;  // Number of locations (nodes)
+    RouteOptimizer routeOptimizer(numLocations);
 
-1. **Encapsulation**: Each entity (Graph, Truck, etc.) is encapsulated into its own class, with clearly defined interfaces (methods) to interact with them.
-   
-2. **Abstraction**: Complex logic like pathfinding and fuel calculations is abstracted behind simple method calls. Users interact with high-level concepts without needing to understand the inner workings.
+    // Adding roads between locations (u, v) with distances
+    routeOptimizer.addRoad(0, 1, 4);
+    routeOptimizer.addRoad(0, 2, 2);
+    routeOptimizer.addRoad(1, 2, 1);
+    routeOptimizer.addRoad(1, 3, 7);
+    routeOptimizer.addRoad(2, 3, 3);
+    routeOptimizer.addRoad(3, 4, 1);
 
-3. **Inheritance**: The project can easily be extended with different types of trucks or warehouses by inheriting and overriding base class methods.
+    // Calculate shortest paths from source (e.g., location 0)
+    int source = 0;
+    vector<int> shortestPaths = routeOptimizer.calculateShortestPaths(source);
 
-4. **Polymorphism**: Functions like `findBestRoute()` can be overridden to introduce new routing strategies, allowing flexible and scalable design.
+    // Print the shortest paths from source to all other locations
+    cout << "Shortest paths from location " << source << ":\n";
+    routeOptimizer.printShortestPaths(source, shortestPaths);
 
-## How to Use
+    // Example setup for CargoOptimizer
+    int vanCapacity = 50;  // Capacity of the van
+    CargoOptimizer cargoOptimizer(vanCapacity);
 
-1. Clone the repository.
-   ```bash
-   git clone <repo-url>
-ks are loaded efficiently, balancing distance traveled with load capacity.
-Modular and Extensible:
+    vector<int> packages = {20, 10, 15, 5, 8};  // List of package sizes
 
-The project design makes it easy to extend functionality by adding more features (e.g., additional types of vehicles, dynamic route adjustments) without affecting existing code.
-Functions and OOP Concepts Explained:
-Class Definitions:
+    // Maximize cargo space
+    int packagesLoaded = cargoOptimizer.maximizeCargoSpace(packages);
+    cout << "\nNumber of packages loaded: " << packagesLoaded << endl;
 
-Graph Class:
-Encapsulates nodes, edges, and methods like addEdge(), dijkstra(), and floydWarshall().
-Encapsulation: Data members (nodes, edges) are kept private and only accessible via public methods.
-Truck Class:
-Stores information like fuel capacity, load capacity, and methods for calculating fuel usage and checking load limits.
-Abstraction: Trucks are abstracted as objects with fuel and load properties, allowing the user to focus on truck behaviors rather than implementation details.
-Graph Representation:
-
-addEdge(int src, int dest, int weight): Adds a bidirectional edge between two nodes in the graph, encapsulating the connection between cities.
-Encapsulation ensures that graph data (nodes, edges) is only modified via controlled methods.
-Dijkstra’s Algorithm:
-
-dijkstra(int src): Finds the shortest path from the source warehouse to all destinations. Encapsulated within the Graph class, ensuring that pathfinding is a graph-specific behavior.
-Polymorphism: This method can be overridden to implement other pathfinding algorithms as needed.
-Floyd-Warshall Algorithm:
-
-floydWarshall(): Encapsulates the logic for finding shortest paths between all pairs of nodes.
-This method is part of the Graph class and uses encapsulation to keep graph data private, modifying it only through defined methods.
-Truck Load Management:
-
-Truck::knapsack(int weight[], int value[], int capacity, int n): A member function of the Truck class that uses the knapsack algorithm to optimize truck loading.
-Encapsulation: Load and capacity constraints are encapsulated within the Truck class, providing a clear interface for interacting with delivery vehicles.
-Fuel Calculation:
-
-Truck::calculateFuel(int distance): Computes fuel consumption based on the distance of the route.
-Abstraction: The complexity of fuel calculation is hidden behind a simple method, making it easier to use.
-Object-Oriented Design Principles:
-Encapsulation: Each entity (Graph, Truck, etc.) is encapsulated into its own class, with clearly defined interfaces (methods) to interact with them.
-
-Abstraction: Complex logic like pathfinding and fuel calculations is abstracted behind simple method calls. Users interact with high-level concepts without needing to understand the inner workings.
-
-Inheritance: The project can easily be extended with different types of trucks or warehouses by inheriting and overriding base class methods.
-
-Polymorphism: Functions like findBestRoute() can be overridden to introduce new routing strategies, allowing flexible and scalable design.
-
-How to Use:
-Clone the repository.
-bash
-Copy code
-git clone <repo-url>
-Compile the code using g++ or any C++ compiler.
-bash
-Copy code
-g++ DeliveryOptimization.cpp -o DeliveryOptimization
-Run the executable and provide the required inputs (number of warehouses, roads, fuel, load, etc.).
-bash
-Copy code
-./DeliveryOptimization
+    return 0;
+}
