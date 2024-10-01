@@ -1,220 +1,123 @@
 #include <iostream>
 #include <vector>
+#include <limits.h>
 #include <algorithm>
-#include <queue>
+
 using namespace std;
 
-const int V = 50;  // Maximum number of nodes
+const int INF = INT_MAX;  // Infinity constant to represent unreachable nodes
 
-// Comparator for sorting items based on weight
-bool comp(pair<int, int>& a, pair<int, int>& b) {
-    return a.second < b.second;
-}
+// Class to handle Floyd-Warshall Algorithm
+class RouteOptimizer {
+private:
+    int numLocations;
+    vector<vector<int>> distanceMatrix;
 
-class DeliveryGraph {
 public:
-    vector<pair<int, int>> adj[V];
-    vector<vector<int>> dist;
+    RouteOptimizer(int n) : numLocations(n) {
+        distanceMatrix.resize(n, vector<int>(n, INF));
 
-    DeliveryGraph() {
-        dist = vector<vector<int>>(V, vector<int>(V, 1e7));
-    }
-
-    // Initialize distances for Floyd-Warshall algorithm
-    void initializeDistances() {
-        for (int i = 0; i < V; i++) {
-            for (auto adjNode : adj[i]) {
-                dist[i][adjNode.first] = adjNode.second;
-            }
-        }
-
-        // Self-loop distance = 0
-        for (int i = 0; i < V; i++) {
-            dist[i][i] = 0;
+        // Set the diagonal to 0 because the distance to the same node is 0
+        for (int i = 0; i < n; i++) {
+            distanceMatrix[i][i] = 0;
         }
     }
 
-    // Floyd-Warshall Algorithm to calculate shortest paths
-    void floydWarshall() {
-        for (int k = 0; k < V; k++) {
-            for (int i = 0; i < V; i++) {
-                for (int j = 0; j < V; j++) {
-                    if (dist[i][j] > dist[i][k] + dist[k][j] &&
-                        dist[i][k] != 1e7 && dist[k][j] != 1e7) {
-                        dist[i][j] = dist[i][k] + dist[k][j];
+    // Function to add a road between two nodes with a certain distance
+    void addRoad(int u, int v, int dist) {
+        distanceMatrix[u][v] = dist;
+        distanceMatrix[v][u] = dist;  // Assuming it's a bidirectional road
+    }
+
+    // Floyd-Warshall algorithm to calculate shortest paths
+    void calculateShortestPaths() {
+        for (int k = 0; k < numLocations; k++) {
+            for (int i = 0; i < numLocations; i++) {
+                for (int j = 0; j < numLocations; j++) {
+                    if (distanceMatrix[i][k] != INF && distanceMatrix[k][j] != INF &&
+                        distanceMatrix[i][j] > distanceMatrix[i][k] + distanceMatrix[k][j]) {
+                        distanceMatrix[i][j] = distanceMatrix[i][k] + distanceMatrix[k][j];
                     }
                 }
             }
         }
     }
 
-    // Shortest path using Dijkstra's algorithm
-    vector<int> shortestPath(int srcNode, int destNode) {
-        priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
-        vector<int> distance(V, 1e9), parent(V);
+    // Function to get the shortest distance between two locations
+    int getShortestDistance(int u, int v) {
+        return distanceMatrix[u][v];
+    }
 
-        for (int i = 0; i < V; i++) {
-            parent[i] = i;
-        }
-
-        distance[srcNode] = 0;
-        pq.push({0, srcNode});
-
-        while (!pq.empty()) {
-            int node = pq.top().second;
-            int dist = pq.top().first;
-            pq.pop();
-
-            for (auto adjNode : adj[node]) {
-                int nextNode = adjNode.first;
-                int edgeWeight = adjNode.second;
-
-                if (dist + edgeWeight < distance[nextNode]) {
-                    distance[nextNode] = dist + edgeWeight;
-                    pq.push({distance[nextNode], nextNode});
-                    parent[nextNode] = node;
+    // Function to print the shortest path distance matrix
+    void printShortestPaths() {
+        for (int i = 0; i < numLocations; i++) {
+            for (int j = 0; j < numLocations; j++) {
+                if (distanceMatrix[i][j] == INF) {
+                    cout << "INF ";
+                } else {
+                    cout << distanceMatrix[i][j] << " ";
                 }
             }
+            cout << endl;
         }
-
-        if (distance[destNode] == 1e9)
-            return {-1};
-
-        vector<int> path;
-        int node = destNode;
-        while (parent[node] != node) {
-            path.push_back(node);
-            node = parent[node];
-        }
-        path.push_back(srcNode);
-        reverse(path.begin(), path.end());
-        return path;
     }
 };
 
-class WarehouseSystem {
-    vector<int> warehouses;
-    vector<int> gasStations;
-    DeliveryGraph graph;
-    int tankCapacity;
-    
+// Greedy class to maximize cargo space utilization
+class CargoOptimizer {
+private:
+    int vanCapacity;
+
 public:
-    WarehouseSystem(vector<int> wh, vector<int> gs, int capacity) 
-        : warehouses(wh), gasStations(gs), tankCapacity(capacity) {}
+    CargoOptimizer(int capacity) : vanCapacity(capacity) {}
 
-    // Select the best warehouse based on proximity to houses
-    int selectWarehouse(const vector<pair<int, int>>& houses) {
-        vector<pair<int, int>> warehouseDistances;
+    // Function to optimize cargo placement using a greedy approach
+    int maximizeCargoSpace(vector<int> &packages) {
+        // Sort the packages in descending order of size
+        sort(packages.begin(), packages.end(), greater<int>());
+        
+        int usedCapacity = 0;
+        int packagesLoaded = 0;
 
-        for (auto house : houses) {
-            int closestWarehouse = -1;
-            int minDistance = 1e7;
-
-            for (auto warehouse : warehouses) {
-                if (graph.dist[warehouse][house.first] < minDistance) {
-                    minDistance = graph.dist[warehouse][house.first];
-                    closestWarehouse = warehouse;
-                }
-            }
-            warehouseDistances.push_back({closestWarehouse, minDistance});
-        }
-
-        vector<int> warehouseCount(warehouses.size(), 0);
-        for (auto wd : warehouseDistances) {
-            for (int i = 0; i < warehouses.size(); i++) {
-                if (wd.first == warehouses[i]) {
-                    warehouseCount[i]++;
-                }
+        for (int package : packages) {
+            if (usedCapacity + package <= vanCapacity) {
+                usedCapacity += package;
+                packagesLoaded++;
+            } else {
+                break;  // Stop when the van is full
             }
         }
 
-        int selectedWarehouse = distance(warehouseCount.begin(), max_element(warehouseCount.begin(), warehouseCount.end()));
-        return warehouses[selectedWarehouse];
-    }
-
-    // Knapsack algorithm to select items to load in van
-    vector<pair<int, int>> packageItems(vector<pair<int, int>>& items, int capacity) {
-        sort(items.begin(), items.end(), comp);
-
-        vector<pair<int, int>> selectedItems;
-        int currentCapacity = 0;
-        for (auto item : items) {
-            if (currentCapacity + item.second <= capacity) {
-                selectedItems.push_back(item);
-                currentCapacity += item.second;
-            }
-        }
-        return selectedItems;
-    }
-
-    // Calculate total distance for delivery
-    int totalDistance(vector<pair<int, int>>& deliveries) {
-        int totalDistance = 0;
-        int currentWarehouse = selectWarehouse(deliveries);
-
-        for (auto delivery : deliveries) {
-            totalDistance += graph.dist[currentWarehouse][delivery.first];
-            currentWarehouse = delivery.first;
-        }
-
-        return totalDistance;
-    }
-
-    // Find nearest gas station
-    int findNearestGasStation(int node) {
-        int minDistance = 1e9;
-        int gasStationID = -1;
-
-        for (int gs : gasStations) {
-            if (graph.dist[node][gs] < minDistance) {
-                minDistance = graph.dist[node][gs];
-                gasStationID = gs;
-            }
-        }
-
-        return gasStationID;
-    }
-
-    // Print delivery path with refueling stops
-    void printDeliveryPath(vector<pair<int, int>>& deliveries) {
-        int currentWarehouse = selectWarehouse(deliveries);
-        int totalDistance = totalDistance(deliveries);
-        int remainingFuel = tankCapacity;
-
-        cout << "Starting from warehouse " << currentWarehouse << endl;
-
-        for (auto delivery : deliveries) {
-            vector<int> path = graph.shortestPath(currentWarehouse, delivery.first);
-
-            for (int i = 0; i < path.size() - 1; i++) {
-                if (remainingFuel - graph.dist[path[i]][path[i + 1]] <= 0) {
-                    int gasStation = findNearestGasStation(path[i]);
-                    cout << "Refueling at gas station " << gasStation << endl;
-                    totalDistance += graph.dist[path[i]][gasStation] + graph.dist[gasStation][path[i + 1]];
-                    remainingFuel = tankCapacity;
-                }
-                remainingFuel -= graph.dist[path[i]][path[i + 1]];
-                cout << path[i] << " -> ";
-            }
-            cout << delivery.first << endl;
-            currentWarehouse = delivery.first;
-        }
-
-        cout << "Total Distance Covered: " << totalDistance << endl;
+        return packagesLoaded;
     }
 };
 
+// Main system to handle route planning and cargo optimization
 int main() {
-    vector<int> warehouses = {1, 48, 29, 36};
-    vector<int> gasStations = {25, 17, 27, 38};
-    int tankCapacity = 250;
+    // Example setup for RouteOptimizer
+    int numLocations = 4;
+    RouteOptimizer routeOptimizer(numLocations);
 
-    WarehouseSystem system(warehouses, gasStations, tankCapacity);
+    // Adding roads between locations (u, v) with distances
+    routeOptimizer.addRoad(0, 1, 4);
+    routeOptimizer.addRoad(1, 2, 5);
+    routeOptimizer.addRoad(0, 2, 10);
+    routeOptimizer.addRoad(2, 3, 3);
 
-    // Example deliveries (node, package weight)
-    vector<pair<int, int>> deliveries = {{2, 50}, {3, 75}, {4, 100}};
+    // Calculate shortest paths
+    routeOptimizer.calculateShortestPaths();
+    cout << "Shortest paths between all locations:\n";
+    routeOptimizer.printShortestPaths();
 
-    system.printDeliveryPath(deliveries);
+    // Example setup for CargoOptimizer
+    int vanCapacity = 50;  // Capacity of the van
+    CargoOptimizer cargoOptimizer(vanCapacity);
+
+    vector<int> packages = {20, 10, 15, 5, 8};  // List of package sizes
+
+    // Maximize cargo space
+    int packagesLoaded = cargoOptimizer.maximizeCargoSpace(packages);
+    cout << "Number of packages loaded: " << packagesLoaded << endl;
 
     return 0;
 }
