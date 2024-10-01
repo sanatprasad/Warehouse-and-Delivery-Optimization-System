@@ -1,64 +1,69 @@
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <limits.h>
-#include <algorithm>
+#include <functional>
 
 using namespace std;
 
 const int INF = INT_MAX;  // Infinity constant to represent unreachable nodes
 
-// Class to handle Floyd-Warshall Algorithm
+// Class to handle Dijkstra's Algorithm
 class RouteOptimizer {
 private:
     int numLocations;
-    vector<vector<int>> distanceMatrix;
+    vector<vector<pair<int, int>>> adjList;  // Adjacency list to store graph (node, weight)
 
 public:
     RouteOptimizer(int n) : numLocations(n) {
-        distanceMatrix.resize(n, vector<int>(n, INF));
-
-        // Set the diagonal to 0 because the distance to the same node is 0
-        for (int i = 0; i < n; i++) {
-            distanceMatrix[i][i] = 0;
-        }
+        adjList.resize(n);
     }
 
     // Function to add a road between two nodes with a certain distance
     void addRoad(int u, int v, int dist) {
-        distanceMatrix[u][v] = dist;
-        distanceMatrix[v][u] = dist;  // Assuming it's a bidirectional road
+        adjList[u].push_back({v, dist});
+        adjList[v].push_back({u, dist});  // Assuming it's a bidirectional road
     }
 
-    // Floyd-Warshall algorithm to calculate shortest paths
-    void calculateShortestPaths() {
-        for (int k = 0; k < numLocations; k++) {
-            for (int i = 0; i < numLocations; i++) {
-                for (int j = 0; j < numLocations; j++) {
-                    if (distanceMatrix[i][k] != INF && distanceMatrix[k][j] != INF &&
-                        distanceMatrix[i][j] > distanceMatrix[i][k] + distanceMatrix[k][j]) {
-                        distanceMatrix[i][j] = distanceMatrix[i][k] + distanceMatrix[k][j];
-                    }
+    // Dijkstra's algorithm to calculate shortest paths from a single source
+    vector<int> calculateShortestPaths(int source) {
+        vector<int> dist(numLocations, INF);
+        dist[source] = 0;
+
+        // Min-heap priority queue to pick the node with the smallest distance
+        priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
+        pq.push({0, source});
+
+        while (!pq.empty()) {
+            int currDist = pq.top().first;
+            int u = pq.top().second;
+            pq.pop();
+
+            // If the current distance is greater than the already found shortest distance, skip
+            if (currDist > dist[u]) continue;
+
+            // Explore neighbors of node u
+            for (auto &neighbor : adjList[u]) {
+                int v = neighbor.first;
+                int weight = neighbor.second;
+
+                if (dist[u] + weight < dist[v]) {
+                    dist[v] = dist[u] + weight;
+                    pq.push({dist[v], v});
                 }
             }
         }
+        return dist;
     }
 
-    // Function to get the shortest distance between two locations
-    int getShortestDistance(int u, int v) {
-        return distanceMatrix[u][v];
-    }
-
-    // Function to print the shortest path distance matrix
-    void printShortestPaths() {
+    // Function to print the shortest distances from a source to all other locations
+    void printShortestPaths(int source, const vector<int>& distances) {
         for (int i = 0; i < numLocations; i++) {
-            for (int j = 0; j < numLocations; j++) {
-                if (distanceMatrix[i][j] == INF) {
-                    cout << "INF ";
-                } else {
-                    cout << distanceMatrix[i][j] << " ";
-                }
+            if (distances[i] == INF) {
+                cout << "Distance from location " << source << " to " << i << ": INF" << endl;
+            } else {
+                cout << "Distance from location " << source << " to " << i << ": " << distances[i] << " units" << endl;
             }
-            cout << endl;
         }
     }
 };
@@ -95,19 +100,24 @@ public:
 // Main system to handle route planning and cargo optimization
 int main() {
     // Example setup for RouteOptimizer
-    int numLocations = 4;
+    int numLocations = 5;  // Number of locations (nodes)
     RouteOptimizer routeOptimizer(numLocations);
 
     // Adding roads between locations (u, v) with distances
     routeOptimizer.addRoad(0, 1, 4);
-    routeOptimizer.addRoad(1, 2, 5);
-    routeOptimizer.addRoad(0, 2, 10);
+    routeOptimizer.addRoad(0, 2, 2);
+    routeOptimizer.addRoad(1, 2, 1);
+    routeOptimizer.addRoad(1, 3, 7);
     routeOptimizer.addRoad(2, 3, 3);
+    routeOptimizer.addRoad(3, 4, 1);
 
-    // Calculate shortest paths
-    routeOptimizer.calculateShortestPaths();
-    cout << "Shortest paths between all locations:\n";
-    routeOptimizer.printShortestPaths();
+    // Calculate shortest paths from source (e.g., location 0)
+    int source = 0;
+    vector<int> shortestPaths = routeOptimizer.calculateShortestPaths(source);
+
+    // Print the shortest paths from source to all other locations
+    cout << "Shortest paths from location " << source << ":\n";
+    routeOptimizer.printShortestPaths(source, shortestPaths);
 
     // Example setup for CargoOptimizer
     int vanCapacity = 50;  // Capacity of the van
@@ -117,7 +127,7 @@ int main() {
 
     // Maximize cargo space
     int packagesLoaded = cargoOptimizer.maximizeCargoSpace(packages);
-    cout << "Number of packages loaded: " << packagesLoaded << endl;
+    cout << "\nNumber of packages loaded: " << packagesLoaded << endl;
 
     return 0;
 }
